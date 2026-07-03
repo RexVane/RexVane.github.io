@@ -1,0 +1,35 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
+  .filter((post) => !post.data.draft && post.data.subcategory === 'AI')
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<BaseLayout title="Blog - AI" description="AI 相关文章">
+  <h1 class="page-title">Blog / AI</h1>
+  <p class="page-quote">"The question of whether a computer can think is no more interesting than the question of whether a submarine can swim." — Edsger W. Dijkstra</p>
+  <div class="posts-list">
+    {posts.length === 0 && <p class="empty">暂无文章</p>}
+    {posts.map((post) => (
+      <a class="post-card" href={`/blog/${post.id.replace('zh/', '')}`}>
+        <time datetime={post.data.pubDate.toISOString()}>{post.data.pubDate.toLocaleDateString('zh-CN')}</time>
+        <h2 class="post-title">{post.data.title}</h2>
+        <p class="post-desc">{post.data.description}</p>
+      </a>
+    ))}
+  </div>
+</BaseLayout>
+
+<style>
+  .page-title { font-size: 1.8rem; font-weight: 700; color: #fff; margin: 0 0 0.5rem; }
+  .page-quote { font-size: 0.85rem; color: #a1a1aa; font-style: italic; margin: 0 0 2rem; }
+  .posts-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .empty { color: #a1a1aa; }
+  .post-card { display: block; text-decoration: none; padding: 1.25rem 1.5rem; border-radius: 0.75rem; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); backdrop-filter: blur(12px); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); transition: all 0.3s ease; }
+  .post-card:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.07); transform: translateY(-2px); }
+  .post-card time { font-size: 0.8rem; color: rgba(224,224,224,0.4); }
+  .post-title { font-size: 1.2rem; font-weight: 600; color: #fff; margin: 0.4rem 0 0.3rem; }
+  .post-desc { font-size: 0.9rem; color: #a1a1aa; margin: 0; }
+</style>

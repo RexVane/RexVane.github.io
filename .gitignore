@@ -1,0 +1,26 @@
+# build output
+dist/
+.astro/
+
+# large source assets
+source-assets/
+
+# local verification output
+screenshots/
+astro-dev*.log
+inspect_model.mjs
+
+# dependencies
+node_modules/
+
+# environment
+.env
+.env.*
+
+# editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

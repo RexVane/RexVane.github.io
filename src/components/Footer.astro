@@ -1,0 +1,36 @@
+---
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <p>&copy; {year} RexVane. All rights reserved.</p>
+  <p class="powered">Powered by <a href="https://github.com/withastro/astro" target="_blank">Astro</a></p>
+</footer>
+
+<style>
+  .site-footer {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    width: 100%;
+    max-width: 64rem;
+    margin: 4rem auto 0;
+    padding: 2rem 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    text-align: center;
+    font-size: 0.8rem;
+    color: rgba(224, 224, 224, 0.4);
+  }
+
+  .site-footer p {
+    margin: 0.25rem 0;
+  }
+
+  .powered a {
+    color: rgba(224, 224, 224, 0.5);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .powered a:hover {
+    color: #fff;
+  }
+</style>

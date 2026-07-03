@@ -1,0 +1,68 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import { getLangFromUrl } from '@/i18n/ui';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import Scene3D from '@/components/Scene3D.astro';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = '' } = Astro.props;
+const lang = getLangFromUrl(Astro.url);
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preload" href="/models/investigation_board.optimized.glb" as="fetch" crossorigin="anonymous" />
+    <title>{title}</title>
+    <ClientRouter fallback="swap" />
+  </head>
+  <body>
+    <div transition:persist="site-scene">
+      <Scene3D />
+    </div>
+    <div class="content">
+      <Header />
+      <main class="main-content">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+  </body>
+</html>
+
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: transparent;
+    overflow-x: hidden;
+    color: #e0e0e0;
+    font-family: system-ui, sans-serif;
+  }
+
+  .content {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 5rem 1.5rem 1rem;
+    min-height: 100vh;
+  }
+
+  .main-content {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: 64rem;
+    margin: 0 auto;
+  }
+</style>
