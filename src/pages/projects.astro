@@ -1,12 +1,101 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+
+interface GitHubRepo {
+  name: string;
+  description: string | null;
+  html_url: string;
+  language: string | null;
+  stargazers_count: number;
+  fork: boolean;
+  updated_at: string;
+  pushed_at: string;
+}
+
+const githubReposUrl = 'https://api.github.com/users/RexVane/repos?sort=updated&per_page=30';
+const githubToken = process.env.GITHUB_TOKEN;
+
+const fallbackProjects: GitHubRepo[] = [
+  {
+    name: 'Wormhole',
+    description:
+      '基于 Python 标准库 socket 的 FTP 服务器(三种并发模型/FTPS/断点续传/chroot 隔离)+ 虫洞随机文件传输桌宠',
+    html_url: 'https://github.com/RexVane/Wormhole',
+    language: 'Python',
+    stargazers_count: 1,
+    fork: false,
+    updated_at: '2026-07-03T04:18:49Z',
+    pushed_at: '2026-07-03T04:18:45Z',
+  },
+];
+
+function sortProjects(repos: GitHubRepo[]) {
+  return repos
+    .filter((repo) => !repo.fork)
+    .sort((a, b) => {
+      const dateA = new Date(a.pushed_at || a.updated_at).valueOf();
+      const dateB = new Date(b.pushed_at || b.updated_at).valueOf();
+      return dateB - dateA;
+    });
+}
+
+function formatProjectDate(value: string) {
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
+}
+
+async function loadBuildTimeProjects() {
+  try {
+    const headers: HeadersInit = {
+      Accept: 'application/vnd.github+json',
+    };
+
+    if (githubToken) {
+      headers.Authorization = `Bearer ${githubToken}`;
+    }
+
+    const response = await fetch(githubReposUrl, {
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API ${response.status}`);
+    }
+
+    return sortProjects((await response.json()) as GitHubRepo[]);
+  } catch (error) {
+    console.warn('Falling back to static project data:', error);
+    return fallbackProjects;
+  }
+}
+
+const projects = await loadBuildTimeProjects();
 ---
 
 <BaseLayout title="Projects" description="My projects">
   <h1 class="page-title">Projects</h1>
   <p class="page-quote">"Talk is cheap. Show me the code." - Linus Torvalds</p>
-  <p class="projects-status" data-projects-status>正在从 GitHub 加载项目...</p>
-  <div class="projects-grid" data-projects-grid aria-live="polite"></div>
+  <p class="projects-status" data-projects-status hidden>正在检查 GitHub 最新项目...</p>
+  <div class="projects-grid" data-projects-grid aria-live="polite">
+    {
+      projects.map((repo) => (
+        <a class="project-card" href={repo.html_url} target="_blank" rel="noreferrer">
+          <div class="project-header">
+            <h2 class="project-name">{repo.name}</h2>
+            {repo.language && <span class="project-lang">{repo.language}</span>}
+          </div>
+          <p class="project-desc">{repo.description || 'No description'}</p>
+          <div class="project-meta">
+            {repo.stargazers_count > 0 && <span class="project-stars">★ {repo.stargazers_count}</span>}
+            <span class="project-date">{formatProjectDate(repo.pushed_at || repo.updated_at)}</span>
+          </div>
+        </a>
+      ))
+    }
+  </div>
 </BaseLayout>
 
 <style>
@@ -199,9 +288,6 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
     if (!grid || !status || grid.dataset.loading === 'true') return;
 
     grid.dataset.loading = 'true';
-    status.hidden = false;
-    status.classList.remove('error');
-    status.textContent = '正在从 GitHub 加载项目...';
 
     try {
       const response = await fetch(githubReposUrl, {
@@ -224,17 +310,16 @@ import BaseLayout from '@/layouts/BaseLayout.astro';
           return dateB - dateA;
         });
 
-      grid.replaceChildren(...projects.map(createProjectCard));
-
-      if (projects.length === 0) {
-        status.textContent = '没有找到公开项目。';
-      } else {
-        status.hidden = true;
+      if (projects.length > 0) {
+        grid.replaceChildren(...projects.map(createProjectCard));
       }
+
+      status.hidden = true;
+      status.classList.remove('error');
     } catch (error) {
-      status.classList.add('error');
-      status.textContent = 'GitHub 项目暂时加载失败，请稍后刷新重试。';
-      console.error('Failed to load GitHub projects:', error);
+      // Keep the build-time cards visible when the browser hits GitHub rate limits.
+      status.hidden = true;
+      console.warn('GitHub live refresh skipped:', error);
     } finally {
       delete grid.dataset.loading;
     }
