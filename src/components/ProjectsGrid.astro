@@ -1,0 +1,254 @@
+---
+import { getLangFromUrl } from '@/i18n/ui';
+import { loadBuildTimeProjects } from '@/lib/github';
+
+const lang = getLangFromUrl(Astro.url);
+const projects = await loadBuildTimeProjects();
+const dateLocale = lang === 'en' ? 'en-US' : 'zh-CN';
+
+function formatProjectDate(value: string) {
+  return new Intl.DateTimeFormat(dateLocale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
+}
+---
+
+<p class="projects-status" data-projects-status hidden>
+  {lang === 'en' ? 'Checking GitHub for the latest projects...' : '正在检查 GitHub 最新项目...'}
+</p>
+<div class="projects-grid" data-projects-grid aria-live="polite">
+  {
+    projects.map((repo) => (
+      <a class="project-card" href={repo.html_url} target="_blank" rel="noreferrer">
+        <div class="project-header">
+          <h2 class="project-name">{repo.name}</h2>
+          {repo.language && <span class="project-lang">{repo.language}</span>}
+        </div>
+        <p class="project-desc">{repo.description || 'No description'}</p>
+        <div class="project-meta">
+          {repo.stargazers_count > 0 && <span class="project-stars">★ {repo.stargazers_count}</span>}
+          <span class="project-date">{formatProjectDate(repo.pushed_at || repo.updated_at)}</span>
+        </div>
+      </a>
+    ))
+  }
+</div>
+
+<style>
+  .projects-status {
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(224, 224, 224, 0.68);
+    font-size: 0.86rem;
+    backdrop-filter: blur(12px) saturate(1.2);
+  }
+
+  .projects-status[hidden] {
+    display: none;
+  }
+
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: 1rem;
+  }
+
+  :global(.project-card) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px) saturate(1.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+
+  :global(.project-card:hover) {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.07);
+    transform: translateY(-3px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  :global(.project-header) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  :global(.project-name) {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+  }
+
+  :global(.project-lang) {
+    font-size: 0.75rem;
+    color: rgba(123, 164, 219, 0.8);
+    padding: 0.2rem 0.5rem;
+    border-radius: 0.3rem;
+    background: rgba(123, 164, 219, 0.1);
+  }
+
+  :global(.project-desc) {
+    font-size: 0.85rem;
+    color: #a1a1aa;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  :global(.project-meta) {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: rgba(224, 224, 224, 0.4);
+    margin-top: auto;
+  }
+
+  @media (max-width: 640px) {
+    .projects-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  interface GitHubRepo {
+    name: string;
+    description: string | null;
+    html_url: string;
+    language: string | null;
+    stargazers_count: number;
+    fork: boolean;
+    updated_at: string;
+    pushed_at: string;
+  }
+
+  type ProjectWindow = Window &
+    typeof globalThis & {
+      __loadProjectsPage?: () => Promise<void>;
+      __projectsPageBound?: boolean;
+    };
+
+  const githubReposUrl = 'https://api.github.com/users/RexVane/repos?sort=updated&per_page=30';
+
+  function formatProjectDate(value: string) {
+    const locale = document.documentElement.lang === 'en' ? 'en-US' : 'zh-CN';
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(value));
+  }
+
+  function createProjectCard(repo: GitHubRepo) {
+    const card = document.createElement('a');
+    card.className = 'project-card';
+    card.href = repo.html_url;
+    card.target = '_blank';
+    card.rel = 'noreferrer';
+
+    const header = document.createElement('div');
+    header.className = 'project-header';
+
+    const name = document.createElement('h2');
+    name.className = 'project-name';
+    name.textContent = repo.name;
+    header.append(name);
+
+    if (repo.language) {
+      const language = document.createElement('span');
+      language.className = 'project-lang';
+      language.textContent = repo.language;
+      header.append(language);
+    }
+
+    const description = document.createElement('p');
+    description.className = 'project-desc';
+    description.textContent = repo.description || 'No description';
+
+    const meta = document.createElement('div');
+    meta.className = 'project-meta';
+
+    if (repo.stargazers_count > 0) {
+      const stars = document.createElement('span');
+      stars.className = 'project-stars';
+      stars.textContent = `★ ${repo.stargazers_count}`;
+      meta.append(stars);
+    }
+
+    const date = document.createElement('span');
+    date.className = 'project-date';
+    date.textContent = formatProjectDate(repo.pushed_at || repo.updated_at);
+    meta.append(date);
+
+    card.append(header, description, meta);
+    return card;
+  }
+
+  async function loadProjectsPage() {
+    const grid = document.querySelector<HTMLElement>('[data-projects-grid]');
+    const status = document.querySelector<HTMLElement>('[data-projects-status]');
+
+    if (!grid || !status || grid.dataset.loading === 'true') return;
+
+    grid.dataset.loading = 'true';
+
+    try {
+      const response = await fetch(githubReposUrl, {
+        cache: 'no-store',
+        headers: {
+          Accept: 'application/vnd.github+json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`GitHub API ${response.status}`);
+      }
+
+      const repos = (await response.json()) as GitHubRepo[];
+      const projects = repos
+        .filter((repo) => !repo.fork)
+        .sort((a, b) => {
+          const dateA = new Date(a.pushed_at || a.updated_at).valueOf();
+          const dateB = new Date(b.pushed_at || b.updated_at).valueOf();
+          return dateB - dateA;
+        });
+
+      if (projects.length > 0) {
+        grid.replaceChildren(...projects.map(createProjectCard));
+      }
+
+      status.hidden = true;
+    } catch (error) {
+      // Keep the build-time cards visible when the browser hits GitHub rate limits.
+      status.hidden = true;
+      console.warn('GitHub live refresh skipped:', error);
+    } finally {
+      delete grid.dataset.loading;
+    }
+  }
+
+  const projectWindow = window as ProjectWindow;
+  projectWindow.__loadProjectsPage = loadProjectsPage;
+  projectWindow.__loadProjectsPage();
+
+  if (!projectWindow.__projectsPageBound) {
+    projectWindow.__projectsPageBound = true;
+    document.addEventListener('astro:page-load', () => projectWindow.__loadProjectsPage?.());
+  }
+</script>

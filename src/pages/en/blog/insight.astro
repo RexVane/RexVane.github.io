@@ -2,14 +2,14 @@
 import ListPage from '@/components/ListPage.astro';
 import { getCollection } from 'astro:content';
 
-const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
   .filter((post) => !post.data.draft && post.data.subcategory === 'Insight')
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
 <ListPage
   title="Blog - Insight"
-  description="观点和思考"
+  description="Thoughts and reflections"
   heading="Blog / Insight"
   quote={'"The unexamined life is not worth living." — Socrates'}
   posts={posts}

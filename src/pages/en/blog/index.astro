@@ -2,9 +2,9 @@
 import ListPage from '@/components/ListPage.astro';
 import { getCollection } from 'astro:content';
 
-const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
-<ListPage title="Blog" description="所有博客文章" heading="Blog" posts={posts} />
+<ListPage title="Blog" description="All blog posts" heading="Blog" posts={posts} />
