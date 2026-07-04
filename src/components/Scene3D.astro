@@ -8,12 +8,9 @@
 <div id="scene-config-panel" class="scene-config-panel" hidden transition:persist="scene-config-panel"></div>
 
 <script>
-  import * as THREE from 'three';
-  import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-  import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-  import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+  import type * as ThreeNS from 'three';
 
-  const canvas = document.getElementById('bg-canvas') as HTMLCanvasElement;
+  const canvas = document.getElementById('bg-canvas') as HTMLCanvasElement | null;
   const configPanel = document.getElementById('scene-config-panel') as HTMLDivElement | null;
   const query = new URLSearchParams(window.location.search);
   const isConfigMode = query.has('sceneConfig');
@@ -100,286 +97,320 @@
 
   let sceneConfig = applyQueryOverrides(readStoredConfig());
 
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x060609);
+  // Three.js 全量约 650KB，动态 import 拆出主 bundle，空闲时再启动，
+  // 首屏内容渲染不再被 3D 背景阻塞。
+  async function initScene(canvasEl: HTMLCanvasElement) {
+    const [THREE, { GLTFLoader }, { RoomEnvironment }, { MeshoptDecoder }] = await Promise.all([
+      import('three'),
+      import('three/examples/jsm/loaders/GLTFLoader.js'),
+      import('three/examples/jsm/environments/RoomEnvironment.js'),
+      import('three/examples/jsm/libs/meshopt_decoder.module.js'),
+    ]);
 
-  const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.05, 500);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  const renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: true,
-    alpha: false,
-    powerPreference: 'high-performance',
-  });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = sceneConfig.exposure;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x060609);
 
-  const pmremGenerator = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.05, 500);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, sceneConfig.ambient);
-  scene.add(ambientLight);
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvasEl,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
 
-  const keyLight = new THREE.DirectionalLight(0xffe3ad, sceneConfig.keyLight);
-  keyLight.position.set(0, 7, -4);
-  scene.add(keyLight);
-
-  const fillLight = new THREE.DirectionalLight(0x88d9ff, sceneConfig.fillLight);
-  fillLight.position.set(-5, 3, 6);
-  scene.add(fillLight);
-
-  const modelRoot = new THREE.Group();
-  scene.add(modelRoot);
-
-  let modelReady = false;
-  let mixer: THREE.AnimationMixer | undefined;
-  let targetZoom = 0;
-  let zoom = 0;
-  let loadedModel: THREE.Group | undefined;
-  let modelSourceCenter = new THREE.Vector3();
-  let modelSourceMaxDim = 1;
-
-  function renderScene() {
-    renderer.render(scene, camera);
-  }
-
-  function setRendererSize() {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-  }
-
-  function getActiveConfig() {
-    const isSmallViewport = window.innerWidth < 760;
-    return isSmallViewport && !isConfigMode ? mobileSceneConfig : sceneConfig;
-  }
-
-  function applyLighting() {
+    function applyPixelRatio() {
+      // 移动端遮罩已把背景压得很暗，降到 1x 省电且几乎无视觉差异
+      const cap = window.innerWidth < 760 ? 1 : 1.5;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, cap));
+    }
+    applyPixelRatio();
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = sceneConfig.exposure;
-    ambientLight.intensity = sceneConfig.ambient;
-    keyLight.intensity = sceneConfig.keyLight;
-    fillLight.intensity = sceneConfig.fillLight;
-  }
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-  function applyModelFit(fitSize: number) {
-    if (!loadedModel) return;
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
 
-    const scale = fitSize / modelSourceMaxDim;
-    loadedModel.scale.setScalar(scale);
-    loadedModel.position.copy(modelSourceCenter).multiplyScalar(-scale);
-  }
+    const ambientLight = new THREE.AmbientLight(0xffffff, sceneConfig.ambient);
+    scene.add(ambientLight);
 
-  function applyRotation(config = getActiveConfig()) {
-    modelRoot.rotation.x = config.rotationX;
-    modelRoot.rotation.y = config.rotationY;
-  }
+    const keyLight = new THREE.DirectionalLight(0xffe3ad, sceneConfig.keyLight);
+    keyLight.position.set(0, 7, -4);
+    scene.add(keyLight);
 
-  function stageScene() {
-    const config = getActiveConfig();
+    const fillLight = new THREE.DirectionalLight(0x88d9ff, sceneConfig.fillLight);
+    fillLight.position.set(-5, 3, 6);
+    scene.add(fillLight);
 
-    if (camera.fov !== config.fov) {
-      camera.fov = config.fov;
+    const modelRoot = new THREE.Group();
+    scene.add(modelRoot);
+
+    let modelReady = false;
+    let mixer: ThreeNS.AnimationMixer | undefined;
+    let targetZoom = 0;
+    let zoom = 0;
+    let loadedModel: ThreeNS.Group | undefined;
+    let modelSourceCenter = new THREE.Vector3();
+    let modelSourceMaxDim = 1;
+    let needsRender = true;
+
+    function setRendererSize() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
       camera.updateProjectionMatrix();
     }
 
-    modelRoot.position.set(config.modelX, config.modelY, config.modelZ);
-    camera.position.set(config.cameraX, config.cameraY, config.cameraZ + zoom);
-    camera.lookAt(config.targetX, config.targetY, config.targetZ);
-    applyModelFit(config.fitSize);
-
-    if (isConfigMode) {
-      applyLighting();
+    function getActiveConfig() {
+      const isSmallViewport = window.innerWidth < 760;
+      return isSmallViewport && !isConfigMode ? mobileSceneConfig : sceneConfig;
     }
-  }
 
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  loader.load(
-    '/models/investigation_board.optimized.glb',
-    (gltf) => {
-      const model = gltf.scene;
+    function applyLighting() {
+      renderer.toneMappingExposure = sceneConfig.exposure;
+      ambientLight.intensity = sceneConfig.ambient;
+      keyLight.intensity = sceneConfig.keyLight;
+      fillLight.intensity = sceneConfig.fillLight;
+    }
 
-      model.traverse((object) => {
-        if ('isMesh' in object && object.isMesh) {
-          const mesh = object as THREE.Mesh;
-          mesh.frustumCulled = false;
+    function applyModelFit(fitSize: number) {
+      if (!loadedModel) return;
 
-          if (mesh.material) {
-            const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-            materials.forEach((material) => {
-              material.side = THREE.DoubleSide;
-              material.needsUpdate = true;
-            });
-          }
-        }
-      });
+      const scale = fitSize / modelSourceMaxDim;
+      loadedModel.scale.setScalar(scale);
+      loadedModel.position.copy(modelSourceCenter).multiplyScalar(-scale);
+    }
 
-      const box = new THREE.Box3().setFromObject(model);
-      modelSourceCenter = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      modelSourceMaxDim = Math.max(size.x, size.y, size.z);
-      loadedModel = model;
+    function applyRotation(config = getActiveConfig()) {
+      modelRoot.rotation.x = config.rotationX;
+      modelRoot.rotation.y = config.rotationY;
+    }
 
-      applyModelFit(getActiveConfig().fitSize);
+    function stageScene() {
+      const config = getActiveConfig();
 
-      modelRoot.add(model);
-
-      if (gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach((clip) => {
-          mixer?.clipAction(clip).play();
-        });
+      if (camera.fov !== config.fov) {
+        camera.fov = config.fov;
+        camera.updateProjectionMatrix();
       }
 
-      stageScene();
-      applyRotation();
-      modelReady = true;
-    },
-    (progress) => {
-      const pct = progress.total > 0 ? Math.round((progress.loaded / progress.total) * 100) : 0;
-      console.log(`Loading model: ${pct}%`);
-    },
-    (error) => {
-      console.error('Error loading model:', error);
+      modelRoot.position.set(config.modelX, config.modelY, config.modelZ);
+      camera.position.set(config.cameraX, config.cameraY, config.cameraZ + zoom);
+      camera.lookAt(config.targetX, config.targetY, config.targetZ);
+      applyModelFit(config.fitSize);
+
+      if (isConfigMode) {
+        applyLighting();
+      }
     }
-  );
 
-  setRendererSize();
-  stageScene();
-  applyRotation();
+    const loader = new GLTFLoader();
+    loader.setMeshoptDecoder(MeshoptDecoder);
+    loader.load(
+      '/models/investigation_board.optimized.glb',
+      (gltf) => {
+        const model = gltf.scene;
 
-  const clock = new THREE.Clock();
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        model.traverse((object) => {
+          if ('isMesh' in object && object.isMesh) {
+            const mesh = object as ThreeNS.Mesh;
+            mesh.frustumCulled = false;
 
-  function saveConfig() {
-    localStorage.setItem(storageKey, JSON.stringify(sceneConfig));
-  }
+            if (mesh.material) {
+              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              materials.forEach((material) => {
+                material.side = THREE.DoubleSide;
+                material.needsUpdate = true;
+              });
+            }
+          }
+        });
 
-  function createConfigPanel() {
-    if (!isConfigMode || !configPanel) return;
+        const box = new THREE.Box3().setFromObject(model);
+        modelSourceCenter = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        modelSourceMaxDim = Math.max(size.x, size.y, size.z);
+        loadedModel = model;
 
-    document.body.classList.add('scene-config-mode');
-    configPanel.hidden = false;
+        applyModelFit(getActiveConfig().fitSize);
 
-    const controls: Array<{ key: keyof SceneConfig; label: string; min: number; max: number; step: number }> = [
-      { key: 'fov', label: 'FOV', min: 35, max: 105, step: 1 },
-      { key: 'fitSize', label: 'Scale', min: 6, max: 18, step: 0.1 },
-      { key: 'modelX', label: 'Model X', min: -8, max: 8, step: 0.05 },
-      { key: 'modelY', label: 'Model Y', min: -4, max: 4, step: 0.05 },
-      { key: 'modelZ', label: 'Model Z', min: -8, max: 8, step: 0.05 },
-      { key: 'cameraX', label: 'Camera X', min: -12, max: 12, step: 0.05 },
-      { key: 'cameraY', label: 'Camera Y', min: -2, max: 4, step: 0.05 },
-      { key: 'cameraZ', label: 'Camera Z', min: -12, max: 12, step: 0.05 },
-      { key: 'targetX', label: 'Look X', min: -12, max: 12, step: 0.05 },
-      { key: 'targetY', label: 'Look Y', min: -2, max: 4, step: 0.05 },
-      { key: 'targetZ', label: 'Look Z', min: -12, max: 12, step: 0.05 },
-      { key: 'rotationX', label: 'Pitch', min: -0.4, max: 0.4, step: 0.005 },
-      { key: 'rotationY', label: 'Yaw', min: -0.8, max: 0.8, step: 0.005 },
-      { key: 'exposure', label: 'Exposure', min: 0.4, max: 2.2, step: 0.02 },
-      { key: 'ambient', label: 'Ambient', min: 0, max: 2, step: 0.02 },
-      { key: 'keyLight', label: 'Key', min: 0, max: 4, step: 0.05 },
-      { key: 'fillLight', label: 'Fill', min: 0, max: 3, step: 0.05 },
-    ];
+        modelRoot.add(model);
 
-    configPanel.innerHTML = `
-      <div class="scene-config-title">Scene Config</div>
-      <div class="scene-config-controls">
-        ${controls
-          .map(
-            (control) => `
-              <label class="scene-control">
-                <span>${control.label}</span>
-                <output data-output="${control.key}">${sceneConfig[control.key].toFixed(2)}</output>
-                <input
-                  data-key="${control.key}"
-                  type="range"
-                  min="${control.min}"
-                  max="${control.max}"
-                  step="${control.step}"
-                  value="${sceneConfig[control.key]}"
-                />
-              </label>
-            `
-          )
-          .join('')}
-      </div>
-      <div class="scene-config-actions">
-        <button type="button" data-action="copy">Copy JSON</button>
-        <button type="button" data-action="reset">Reset</button>
-      </div>
-    `;
+        if (gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(model);
+          gltf.animations.forEach((clip) => {
+            mixer?.clipAction(clip).play();
+          });
+        }
 
-    configPanel.querySelectorAll<HTMLInputElement>('input[data-key]').forEach((input) => {
-      input.addEventListener('input', () => {
-        const key = input.dataset.key as keyof SceneConfig;
-        const value = Number(input.value);
-        sceneConfig = { ...sceneConfig, [key]: value };
-        configPanel.querySelector<HTMLOutputElement>(`output[data-output="${key}"]`)!.value = value.toFixed(2);
-        saveConfig();
         stageScene();
         applyRotation();
-      });
-    });
-
-    configPanel.querySelector<HTMLButtonElement>('button[data-action="copy"]')?.addEventListener('click', async () => {
-      const json = JSON.stringify(sceneConfig, null, 2);
-      console.log('Scene config:', json);
-      await navigator.clipboard?.writeText(json);
-    });
-
-    configPanel.querySelector<HTMLButtonElement>('button[data-action="reset"]')?.addEventListener('click', () => {
-      sceneConfig = { ...defaultSceneConfig };
-      saveConfig();
-      configPanel.querySelectorAll<HTMLInputElement>('input[data-key]').forEach((input) => {
-        const key = input.dataset.key as keyof SceneConfig;
-        input.value = String(sceneConfig[key]);
-        configPanel.querySelector<HTMLOutputElement>(`output[data-output="${key}"]`)!.value = sceneConfig[key].toFixed(2);
-      });
-      stageScene();
-      applyRotation();
-    });
-  }
-
-  createConfigPanel();
-
-  function animate() {
-    requestAnimationFrame(animate);
-    const delta = clock.getDelta();
-
-    if (modelReady) {
-      zoom += (targetZoom - zoom) * 0.08;
-      stageScene();
-
-      if (!reducedMotion) {
-        mixer?.update(delta);
+        modelReady = true;
+        needsRender = true;
+      },
+      undefined,
+      (error) => {
+        console.error('Error loading model:', error);
       }
-    }
+    );
 
-    renderer.render(scene, camera);
-  }
-  animate();
-
-  window.addEventListener('resize', () => {
     setRendererSize();
     stageScene();
     applyRotation();
-  });
 
-  window.addEventListener(
-    'wheel',
-    (event) => {
-      if (!event.altKey) return;
+    const clock = new THREE.Clock();
 
-      event.preventDefault();
-      targetZoom = THREE.MathUtils.clamp(targetZoom + event.deltaY * 0.0025, -0.75, 1.2);
-    },
-    { passive: false }
-  );
+    function saveConfig() {
+      localStorage.setItem(storageKey, JSON.stringify(sceneConfig));
+    }
+
+    function createConfigPanel() {
+      if (!isConfigMode || !configPanel) return;
+
+      document.body.classList.add('scene-config-mode');
+      configPanel.hidden = false;
+
+      const controls: Array<{ key: keyof SceneConfig; label: string; min: number; max: number; step: number }> = [
+        { key: 'fov', label: 'FOV', min: 35, max: 105, step: 1 },
+        { key: 'fitSize', label: 'Scale', min: 6, max: 18, step: 0.1 },
+        { key: 'modelX', label: 'Model X', min: -8, max: 8, step: 0.05 },
+        { key: 'modelY', label: 'Model Y', min: -4, max: 4, step: 0.05 },
+        { key: 'modelZ', label: 'Model Z', min: -8, max: 8, step: 0.05 },
+        { key: 'cameraX', label: 'Camera X', min: -12, max: 12, step: 0.05 },
+        { key: 'cameraY', label: 'Camera Y', min: -2, max: 4, step: 0.05 },
+        { key: 'cameraZ', label: 'Camera Z', min: -12, max: 12, step: 0.05 },
+        { key: 'targetX', label: 'Look X', min: -12, max: 12, step: 0.05 },
+        { key: 'targetY', label: 'Look Y', min: -2, max: 4, step: 0.05 },
+        { key: 'targetZ', label: 'Look Z', min: -12, max: 12, step: 0.05 },
+        { key: 'rotationX', label: 'Pitch', min: -0.4, max: 0.4, step: 0.005 },
+        { key: 'rotationY', label: 'Yaw', min: -0.8, max: 0.8, step: 0.005 },
+        { key: 'exposure', label: 'Exposure', min: 0.4, max: 2.2, step: 0.02 },
+        { key: 'ambient', label: 'Ambient', min: 0, max: 2, step: 0.02 },
+        { key: 'keyLight', label: 'Key', min: 0, max: 4, step: 0.05 },
+        { key: 'fillLight', label: 'Fill', min: 0, max: 3, step: 0.05 },
+      ];
+
+      configPanel.innerHTML = `
+        <div class="scene-config-title">Scene Config</div>
+        <div class="scene-config-controls">
+          ${controls
+            .map(
+              (control) => `
+                <label class="scene-control">
+                  <span>${control.label}</span>
+                  <output data-output="${control.key}">${sceneConfig[control.key].toFixed(2)}</output>
+                  <input
+                    data-key="${control.key}"
+                    type="range"
+                    min="${control.min}"
+                    max="${control.max}"
+                    step="${control.step}"
+                    value="${sceneConfig[control.key]}"
+                  />
+                </label>
+              `
+            )
+            .join('')}
+        </div>
+        <div class="scene-config-actions">
+          <button type="button" data-action="copy">Copy JSON</button>
+          <button type="button" data-action="reset">Reset</button>
+        </div>
+      `;
+
+      configPanel.querySelectorAll<HTMLInputElement>('input[data-key]').forEach((input) => {
+        input.addEventListener('input', () => {
+          const key = input.dataset.key as keyof SceneConfig;
+          const value = Number(input.value);
+          sceneConfig = { ...sceneConfig, [key]: value };
+          configPanel.querySelector<HTMLOutputElement>(`output[data-output="${key}"]`)!.value = value.toFixed(2);
+          saveConfig();
+          stageScene();
+          applyRotation();
+          needsRender = true;
+        });
+      });
+
+      configPanel.querySelector<HTMLButtonElement>('button[data-action="copy"]')?.addEventListener('click', async () => {
+        const json = JSON.stringify(sceneConfig, null, 2);
+        console.log('Scene config:', json);
+        await navigator.clipboard?.writeText(json);
+      });
+
+      configPanel.querySelector<HTMLButtonElement>('button[data-action="reset"]')?.addEventListener('click', () => {
+        sceneConfig = { ...defaultSceneConfig };
+        saveConfig();
+        configPanel.querySelectorAll<HTMLInputElement>('input[data-key]').forEach((input) => {
+          const key = input.dataset.key as keyof SceneConfig;
+          input.value = String(sceneConfig[key]);
+          configPanel.querySelector<HTMLOutputElement>(`output[data-output="${key}"]`)!.value = sceneConfig[key].toFixed(2);
+        });
+        stageScene();
+        applyRotation();
+        needsRender = true;
+      });
+    }
+
+    createConfigPanel();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      const zooming = modelReady && Math.abs(targetZoom - zoom) > 0.0005;
+      if (zooming) {
+        zoom += (targetZoom - zoom) * 0.08;
+        stageScene();
+      }
+
+      const animating = modelReady && mixer !== undefined && !reducedMotion;
+      if (animating) {
+        mixer!.update(delta);
+      }
+
+      // 静止且无动画时跳过渲染，不再空烧 GPU
+      if (needsRender || zooming || animating) {
+        renderer.render(scene, camera);
+        needsRender = false;
+      }
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      applyPixelRatio();
+      setRendererSize();
+      stageScene();
+      applyRotation();
+      needsRender = true;
+    });
+
+    window.addEventListener(
+      'wheel',
+      (event) => {
+        if (!event.altKey) return;
+
+        event.preventDefault();
+        targetZoom = THREE.MathUtils.clamp(targetZoom + event.deltaY * 0.0025, -0.75, 1.2);
+      },
+      { passive: false }
+    );
+  }
+
+  if (canvas) {
+    const start = () => {
+      initScene(canvas).catch((error) => console.error('Scene3D init failed:', error));
+    };
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(start, { timeout: 2000 });
+    } else {
+      window.setTimeout(start, 300);
+    }
+  }
 </script>
 
 <style>
