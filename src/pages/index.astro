@@ -1,16 +1,18 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
+import avatar from '@/assets/avatar.jpg';
 
 const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
-<BaseLayout title="我的博客" description="个人博客">
+<BaseLayout title="RexVane's Blog" description="RexVane 的个人博客：技术、项目与生活记录">
   <section class="profile-section">
     <div class="profile-card">
-      <img class="avatar" src="/avatar.jpg" alt="RexVane" />
+      <Image class="avatar" src={avatar} alt="RexVane" width={288} height={288} format="webp" quality={82} loading="eager" />
       <div class="profile-info">
         <h1 class="profile-name">RexVane</h1>
         <div class="profile-badges">
@@ -31,7 +33,7 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
     <h2 class="section-title">Recent</h2>
     <div class="timeline">
       {posts.map((post) => (
-        <a class="timeline-item" href={`/blog/${post.id.replace('zh/', '')}`}>
+        <a class="timeline-item" href={`/blog/${post.id.replace('zh/', '')}/`}>
           <div class="timeline-date">
             <time datetime={post.data.pubDate.toISOString()}>
               <span class="date-day">{post.data.pubDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}</span>

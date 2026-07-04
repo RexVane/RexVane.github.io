@@ -1,16 +1,18 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
+import { Image } from 'astro:assets';
 import { getCollection } from 'astro:content';
+import avatar from '@/assets/avatar.jpg';
 
 const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
   .filter((post) => !post.data.draft)
   .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
-<BaseLayout title="My Blog" description="Personal blog">
+<BaseLayout title="RexVane's Blog" description="RexVane's personal blog: tech, projects and everyday life.">
   <section class="profile-section">
     <div class="profile-card">
-      <img class="avatar" src="/avatar.jpg" alt="RexVane" />
+      <Image class="avatar" src={avatar} alt="RexVane" width={288} height={288} format="webp" quality={82} loading="eager" />
       <div class="profile-info">
         <h1 class="profile-name">RexVane</h1>
         <div class="profile-badges">
@@ -24,17 +26,21 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
 
   <section class="about-section">
     <h2 class="section-title">About</h2>
-    <p class="about-text">Write a short intro about yourself here.</p>
+    <p class="about-text">
+      I'm an undergraduate studying Computer Science and Technology at Guangdong University of Technology (Class of
+      2024), steadily exploring my way forward...
+    </p>
   </section>
 
   <section class="posts-section">
     <h2 class="section-title">Recent</h2>
     <div class="timeline">
       {posts.map((post) => (
-        <a class="timeline-item" href={`/en/blog/${post.id.replace('en/', '')}`}>
+        <a class="timeline-item" href={`/en/blog/${post.id.replace('en/', '')}/`}>
           <div class="timeline-date">
             <time datetime={post.data.pubDate.toISOString()}>
-              {post.data.pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} {post.data.pubDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+              <span class="date-day">{post.data.pubDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              <span class="date-time">{post.data.pubDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
             </time>
           </div>
           <div class="timeline-content">
@@ -95,13 +101,15 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
     align-items: center;
     gap: 0.4rem;
     padding: 0.5rem 0.75rem;
-    border-radius: 0.5rem;
-    background: linear-gradient(to right, rgba(255,255,255,0.04), rgba(255,255,255,0.02), rgba(255,255,255,0.04));
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.6rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px) saturate(1.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     font-size: 0.8rem;
-    color: rgba(224, 224, 224, 0.6);
+    color: rgba(224, 224, 224, 0.7);
     font-weight: 500;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
   }
 
   .badge-link {
@@ -109,10 +117,13 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
     cursor: pointer;
   }
   .badge-link:hover {
-    border-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.25);
     color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 4px 16px rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .about-section {
@@ -140,7 +151,7 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
   .timeline {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 0.75rem;
     position: relative;
     padding-left: 6rem;
   }
@@ -161,12 +172,20 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
     text-decoration: none;
     padding: 1rem 1.25rem;
     margin-left: 1rem;
-    border-radius: 0.6rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(12px) saturate(1.2);
     position: relative;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
   }
   .timeline-item:hover {
-    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 8px 24px rgba(0, 0, 0, 0.3);
+    transform: translateX(2px);
   }
 
   .timeline-item::before {
@@ -187,10 +206,24 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
   .timeline-date {
     position: absolute;
     left: -5.5rem;
-    top: 1.1rem;
-    font-size: 0.8rem;
+    top: 1rem;
+    font-size: 0.75rem;
     color: rgba(224, 224, 224, 0.4);
     white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.4;
+  }
+
+  .date-day {
+    display: block;
+  }
+
+  .date-time {
+    display: block;
+    font-size: 0.7rem;
+    color: rgba(224, 224, 224, 0.3);
   }
 
   .timeline-content {
@@ -218,17 +251,5 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
     font-size: 0.85rem;
     color: #a1a1aa;
     margin: 0;
-  }
-
-  .timeline-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    margin-top: 0.3rem;
-  }
-
-  .timeline-tag {
-    font-size: 0.7rem;
-    color: rgba(224, 224, 224, 0.4);
   }
 </style>

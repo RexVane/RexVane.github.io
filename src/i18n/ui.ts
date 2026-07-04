@@ -7,20 +7,24 @@ export const defaultLang = 'zh';
 
 export const ui = {
   zh: {
-    'nav.home': '首页',
-    'nav.blog': '博客',
-    'nav.about': '关于',
-    'blog.readMore': '阅读全文',
-    'blog.publishedOn': '发布于',
-    'blog.tags': '标签',
+    'site.title': "RexVane's Blog",
+    'site.description': 'RexVane 的个人博客：技术、项目与生活记录',
+    'post.toc': '目录',
+    'post.updated': '更新于',
+    'list.empty': '暂无文章',
+    'search.title': '搜索',
+    'search.close': '关闭',
+    'search.devHint': '搜索索引仅在生产构建中可用，请运行 npm run build 后预览。',
   },
   en: {
-    'nav.home': 'Home',
-    'nav.blog': 'Blog',
-    'nav.about': 'About',
-    'blog.readMore': 'Read more',
-    'blog.publishedOn': 'Published on',
-    'blog.tags': 'Tags',
+    'site.title': "RexVane's Blog",
+    'site.description': "RexVane's personal blog: tech, projects and everyday life.",
+    'post.toc': 'On this page',
+    'post.updated': 'Updated on',
+    'list.empty': 'No posts yet.',
+    'search.title': 'Search',
+    'search.close': 'Close',
+    'search.devHint': 'Search index is only available in production builds. Run npm run build to preview.',
   },
 } as const;
 
