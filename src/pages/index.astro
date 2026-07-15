@@ -36,8 +36,8 @@ const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
         <a class="timeline-item" href={`/blog/${post.id.replace('zh/', '')}/`}>
           <div class="timeline-date">
             <time datetime={post.data.pubDate.toISOString()}>
-              <span class="date-day">{post.data.pubDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })}</span>
-              <span class="date-time">{post.data.pubDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span class="date-day">{post.data.pubDate.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai', month: 'short', day: 'numeric' })}</span>
+              <span class="date-time">{post.data.pubDate.toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })}</span>
             </time>
           </div>
           <div class="timeline-content">
