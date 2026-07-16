@@ -56,7 +56,7 @@ jobs:
           path: dist
       - uses: softprops/action-gh-release@v2
         with:
-          name: RexVane Writer ${{ github.ref_name }}
+          name: Blog Writer ${{ github.ref_name }}
           files: dist/*
           body: |
             **Blog Writer** —— 本地写文章、一键上传到博客的桌面程序。
