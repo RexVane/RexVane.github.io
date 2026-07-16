@@ -332,6 +332,18 @@ test('saves pasted image bytes under the article image directory with unique nam
   }
 });
 
+test('starts cleanly when the blog has no content directory yet', async () => {
+  const fixture = await createRepository();
+  try {
+    await fs.rm(path.join(fixture.repo, 'src'), { recursive: true, force: true });
+    const initial = await fixture.service.getInitialData();
+    assert.deepEqual(initial.articles, []);
+    assert.deepEqual(initial.tags, []);
+  } finally {
+    await removeRepository(fixture.root);
+  }
+});
+
 test('blocks blank and draft articles from publishing', async () => {
   const blankFixture = await createRepository();
   try {

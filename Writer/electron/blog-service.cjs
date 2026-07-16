@@ -158,8 +158,15 @@ function serializeArticle(article) {
   return `---\n${frontmatter}\n---${body}`;
 }
 
+// 目录可能不存在（比如博客还没有任何文章，git 不保留空目录），此时视为没有文件。
 async function listFilesRecursive(directory) {
-  const entries = await fs.readdir(directory, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await fs.readdir(directory, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
   const nested = await Promise.all(entries.map(async (entry) => {
     const fullPath = path.join(directory, entry.name);
     if (entry.isDirectory()) return listFilesRecursive(fullPath);
