@@ -46,7 +46,6 @@
     "directories": {
       "output": "release"
     },
-    "electronDist": "node_modules/electron/dist",
     "files": [
       "dist-renderer/**/*",
       "electron/**/*",
