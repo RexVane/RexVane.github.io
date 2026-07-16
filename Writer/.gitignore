@@ -1,26 +1,8 @@
-# build output
-dist/
-.astro/
-
-# large source assets
-source-assets/
-
-# local verification output
-screenshots/
-astro-dev*.log
-inspect_model.mjs
-
-# dependencies
 node_modules/
+dist-renderer/
+release/
+artifacts/
+test-results/
+playwright-report/
+*.log
 
-# environment
-.env
-.env.*
-
-# editor
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
