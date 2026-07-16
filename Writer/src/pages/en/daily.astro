@@ -1,0 +1,16 @@
+---
+import ListPage from '@/components/ListPage.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('en/')))
+  .filter((post) => !post.data.draft && post.data.category === 'Daily Life')
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<ListPage
+  title="Daily Life"
+  description="Daily life"
+  heading="Daily Life"
+  quote={'"Life is what happens when you\'re busy making other plans." — John Lennon'}
+  posts={posts}
+/>

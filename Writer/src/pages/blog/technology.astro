@@ -1,0 +1,16 @@
+---
+import ListPage from '@/components/ListPage.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
+  .filter((post) => !post.data.draft && post.data.subcategory === 'Technology')
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<ListPage
+  title="Blog - Technology"
+  description="技术文章"
+  heading="Blog / Technology"
+  quote={'"Any sufficiently advanced technology is indistinguishable from magic." — Arthur C. Clarke'}
+  posts={posts}
+/>

@@ -1,0 +1,111 @@
+---
+import { ClientRouter } from 'astro:transitions';
+import { getImage } from 'astro:assets';
+import { getLangFromUrl } from '@/i18n/ui';
+import Header from '@/components/Header.astro';
+import Footer from '@/components/Footer.astro';
+import Scene3D from '@/components/Scene3D.astro';
+import SearchModal from '@/components/SearchModal.astro';
+import avatar from '@/assets/avatar.jpg';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogType?: 'website' | 'article';
+  pubDate?: Date;
+  updatedDate?: Date;
+}
+
+const siteTitle = "RexVane's Blog";
+const { title, description = '', ogType = 'website', pubDate, updatedDate } = Astro.props;
+const fullTitle = title === siteTitle ? siteTitle : `${title} · ${siteTitle}`;
+const lang = getLangFromUrl(Astro.url);
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = await getImage({ src: avatar, width: 512, height: 512, format: 'jpeg' });
+const ogImageURL = new URL(ogImage.src, Astro.site);
+const path = Astro.url.pathname;
+const isHome = path === '/' || path === '/en' || path === '/en/';
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#060609" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate" type="application/rss+xml" title={siteTitle} href="/rss.xml" />
+    {
+      isHome && (
+        <>
+          <link rel="alternate" hreflang="zh" href={new URL('/', Astro.site)} />
+          <link rel="alternate" hreflang="en" href={new URL('/en/', Astro.site)} />
+          <link rel="alternate" hreflang="x-default" href={new URL('/', Astro.site)} />
+        </>
+      )
+    }
+    <meta property="og:type" content={ogType} />
+    <meta property="og:site_name" content={siteTitle} />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageURL} />
+    <meta property="og:locale" content={lang === 'en' ? 'en_US' : 'zh_CN'} />
+    {ogType === 'article' && pubDate && <meta property="article:published_time" content={pubDate.toISOString()} />}
+    {ogType === 'article' && updatedDate && <meta property="article:modified_time" content={updatedDate.toISOString()} />}
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageURL} />
+    <link rel="preload" href="/models/investigation_board.optimized.glb" as="fetch" crossorigin="anonymous" />
+    <title>{fullTitle}</title>
+    <ClientRouter fallback="swap" />
+  </head>
+  <body>
+    <div transition:persist="site-scene">
+      <Scene3D />
+    </div>
+    <div class="content">
+      <Header />
+      <main class="main-content">
+        <slot />
+      </main>
+      <Footer />
+    </div>
+    <div transition:persist="search-modal-root">
+      <SearchModal />
+    </div>
+  </body>
+</html>
+
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background: transparent;
+    overflow-x: hidden;
+    color: #e0e0e0;
+    font-family: system-ui, sans-serif;
+  }
+
+  .content {
+    position: relative;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 5rem 1.5rem 1rem;
+    min-height: calc(100vh + 7rem);
+  }
+
+  .main-content {
+    flex: 1 0 auto;
+    width: 100%;
+    max-width: 64rem;
+    margin: 0 auto;
+  }
+</style>

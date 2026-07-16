@@ -1,0 +1,16 @@
+---
+import ListPage from '@/components/ListPage.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ id }) => id.startsWith('zh/')))
+  .filter((post) => !post.data.draft && post.data.subcategory === 'AI')
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+
+<ListPage
+  title="Blog - AI"
+  description="AI 相关文章"
+  heading="Blog / AI"
+  quote={'"The question of whether a computer can think is no more interesting than the question of whether a submarine can swim." — Edsger W. Dijkstra'}
+  posts={posts}
+/>
