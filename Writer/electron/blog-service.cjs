@@ -203,7 +203,12 @@ class BlogService {
 
   async assertRepository() {
     const root = await this.git(['rev-parse', '--show-toplevel']);
-    if (path.resolve(root).toLowerCase() !== this.repoPath.toLowerCase()) {
+    // macOS 的临时目录经由符号链接（/var -> /private/var），必须先解析真实路径再比较。
+    const [resolvedRoot, resolvedRepo] = await Promise.all([
+      fs.realpath(path.resolve(root)).catch(() => path.resolve(root)),
+      fs.realpath(this.repoPath).catch(() => this.repoPath),
+    ]);
+    if (resolvedRoot.toLowerCase() !== resolvedRepo.toLowerCase()) {
       throw new WriterError('博客仓库路径不正确', 'INVALID_REPOSITORY');
     }
     if (this.strictRemote) {
