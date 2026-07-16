@@ -16,7 +16,8 @@ async function generate() {
     .resize(size, size)
     .png()
     .toBuffer()));
-  await fs.writeFile(pngPath, images.at(-1));
+  // icon.png 供 electron-builder 生成 macOS 的 icns，至少需要 512px。
+  await fs.writeFile(pngPath, await sharp(svg).resize(1024, 1024).png().toBuffer());
   await fs.writeFile(icoPath, await pngToIco(images));
   process.stdout.write(`Generated ${path.relative(root, icoPath)}\n`);
 }

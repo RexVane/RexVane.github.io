@@ -1,10 +1,12 @@
 const fs = require('node:fs/promises');
+const os = require('node:os');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } = require('electron');
 const { BlogService, WriterError } = require('./blog-service.cjs');
 
-const PRODUCTION_REPO = 'C:\\Users\\guica\\RexVane.github.io';
+// 博客工作副本固定在用户主目录下（Windows: C:\Users\<用户>\RexVane.github.io，macOS: ~/RexVane.github.io）。
+const PRODUCTION_REPO = path.join(os.homedir(), 'RexVane.github.io');
 const repoPath = process.env.WRITER_E2E === '1' && process.env.WRITER_REPO_PATH
   ? process.env.WRITER_REPO_PATH
   : PRODUCTION_REPO;
